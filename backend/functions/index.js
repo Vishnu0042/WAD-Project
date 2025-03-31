@@ -4,7 +4,10 @@ const express = require("express");
 const cors = require("cors");
 const axios = require("axios");
 
-admin.initializeApp();
+if (!admin.apps.length) {
+  admin.initializeApp();
+}
+
 const db = admin.firestore();
 
 const app = express();
@@ -69,48 +72,127 @@ app.post("/login", async (req, res) => {
     }
 });
 
-////////////////////////////////////////DASHBOARD
+// Dashboard API - Get user data and assigned subjects
+app.get("/dashboard/:empId", async (req, res) => {
+  try {
+    const { empId } = req.params;
+    const { search, role } = req.query;
 
-app.post("/get-user-dashboard", async (req, res) => {
-    try {
-        const { empId } = req.body;
-        if (!empId) {
-            return res.status(400).json({ error: "Employee ID is required." });
-        }
-
-        // Fetch user data from Firestore
-        const userDoc = await db.collection("users").doc(empId).get();
-        if (!userDoc.exists) {
-            return res.status(404).json({ error: "User not found." });
-        }
-        const userData = userDoc.data();
-
-        // Fetch subjects assigned to the user
-        const subjects = [];
-        for (const subj of userData.subjects) {
-            const subjectDoc = await db.collection("subjects").doc(subj.code).get();
-            if (subjectDoc.exists) {
-                const subjectData = subjectDoc.data();
-                subjects.push({
-                    name: subjectData.name,
-                    code: subjectData.code,
-                    courseCoordinator: subjectData.courseCoordinator || { name: "Not Assigned" },
-                    nbaCoordinator: subjectData.nbaCoordinator || { name: "Not Assigned" },
-                    role: userData.role // User's role in this subject
-                });
-            }
-        }
-
-        return res.status(200).json({
-            profile_picture: userData.profile_picture || "", // Default to empty if not set
-            subjects: subjects
-        });
-
-    } catch (error) {
-        console.error("Error fetching user dashboard:", error.message);
-        return res.status(500).json({ error: "Internal server error." });
+    if (!empId) {
+      return res.status(400).json({ error: "Employee ID is required." });
     }
+
+    // Get user data including profile picture
+    const userDoc = await db.collection("users").doc(empId).get();
+
+    if (!userDoc.exists) {
+      return res.status(404).json({ error: "User not found." });
+    }
+
+    const userData = userDoc.data();
+    const userSubjects = userData.subjects || [];
+
+    // Extract subject codes from the user's subjects list
+    const subjectCodes = userSubjects.map(subject => subject.code);
+
+    if (subjectCodes.length === 0) {
+      return res.status(200).json({
+        user: {
+          empId: userData.empId,
+          name: userData.name,
+          email: userData.email,
+          profile_picture: userData.profile_picture || "",
+          role: userData.role,
+          department: userData.department,
+          phone: userData.phone,
+          unreadNotifications: userData.unreadNotifications
+        },
+        subjects: []
+      });
+    }
+
+    // Fetch all subjects assigned to the user
+    const subjectSnapshots = await db.collection("subjects").where("code", "in", subjectCodes).get();
+
+    if (subjectSnapshots.empty) {
+      return res.status(200).json({
+        user: {
+          empId: userData.empId,
+          name: userData.name,
+          email: userData.email,
+          profile_picture: userData.profile_picture || "",
+          role: userData.role,
+          department: userData.department,
+          phone: userData.phone,
+          unreadNotifications: userData.unreadNotifications
+        },
+        subjects: []
+      });
+    }
+
+    // Process the subjects data
+    let subjectsData = subjectSnapshots.docs.map(doc => {
+      const subject = doc.data();
+
+      // Ensure faculty is treated as an array
+      const facultyList = Array.isArray(subject.faculty) ? subject.faculty : [];
+
+      // Determine user's role in this subject
+      let userRoleInSubject = "Faculty"; // Default role
+
+      if (subject.courseCoordinator?.empId === empId) {
+        userRoleInSubject = "Course Coordinator";
+      } else if (subject.nbaCoordinator?.empId === empId) {
+        userRoleInSubject = "NBA Coordinator";
+      } else if (facultyList.some(f => f.empId === empId)) {
+        userRoleInSubject = "Faculty";
+      }
+
+      return {
+        code: subject.code,
+        name: subject.name,
+        courseCoordinator: subject.courseCoordinator || null,
+        nbaCoordinator: subject.nbaCoordinator || null,
+        userRole: userRoleInSubject
+      };
+    });
+
+    // Apply search filter if provided
+    if (search && search.trim() !== "") {
+      const searchTerm = search.toLowerCase().trim();
+      subjectsData = subjectsData.filter(subject =>
+        subject.code.toLowerCase().includes(searchTerm) ||
+        subject.name.toLowerCase().includes(searchTerm)
+      );
+    }
+
+    // Filter by role if provided
+    if (role && role.trim() !== "") {
+      subjectsData = subjectsData.filter(subject =>
+        subject.userRole.toLowerCase() === role.toLowerCase()
+      );
+    }
+
+    return res.status(200).json({
+      user: {
+        empId: userData.empId,
+        name: userData.name,
+        email: userData.email,
+        profile_picture: userData.profile_picture || "",
+        role: userData.role,
+        department: userData.department,
+        phone: userData.phone,
+        unreadNotifications: userData.unreadNotifications
+      },
+      subjects: subjectsData
+    });
+
+  } catch (error) {
+    console.error("Dashboard API Error:", error);
+    return res.status(500).json({ error: "Internal server error: " + error.message });
+  }
 });
+
 
 // Export API
 exports.api = functions.https.onRequest(app);
