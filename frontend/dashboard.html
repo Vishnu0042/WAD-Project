@@ -205,12 +205,13 @@
             font-size: 14px;
             color: #7f8c8d;
         }
+
         .not-found-message {
-        text-align: center;
-        font-size: 18px;
-        color: #7f8c8d;
-        margin-top: 20px;
-    }
+            text-align: center;
+            font-size: 18px;
+            color: #7f8c8d;
+            margin-top: 20px;
+        }
     </style>
 </head>
 <body>
@@ -264,19 +265,19 @@
         const searchBar = document.querySelector('.search-bar');
         const sortDropdown = document.querySelector('.sort-dropdown');
         const subjectsContainer = document.getElementById('subjects-container');
-    
+
         // Show sidebar and hide hamburger button
         hamburgerContainer.addEventListener('mouseover', () => {
             sidebar.classList.add('show');
             hamburgerContainer.classList.add('hidden');
         });
-    
+
         // Hide sidebar and show hamburger button when cursor leaves sidebar
         sidebar.addEventListener('mouseleave', () => {
             sidebar.classList.remove('show');
             hamburgerContainer.classList.remove('hidden');
         });
-    
+
         document.addEventListener("DOMContentLoaded", async function () {
             const user = JSON.parse(localStorage.getItem("user"));
             if (!user || !user.empId) {
@@ -284,22 +285,35 @@
                 window.location.href = "index.html";
                 return;
             }
-    
+
             const empId = user.empId;
-    
+
             try {
+                // Fetch user profile data for profile photo
+                const profileResponse = await fetch(`https://us-central1-wad-casestudy0042.cloudfunctions.net/api/profile/${empId}`);
+                const profileData = await profileResponse.json();
+
+                if (profileResponse.ok) {
+                    const profilePhoto = document.querySelector(".profile-photo");
+                    profilePhoto.src = profileData.profile_picture || "download.jpeg"; // Use fallback if no profile picture
+                    profilePhoto.onerror = function () {
+                        profilePhoto.src = "download.jpeg"; // Fallback image
+                    };
+                }
+
+                // Fetch subjects data
                 const response = await fetch(`https://us-central1-wad-casestudy0042.cloudfunctions.net/api/dashboard/${empId}`);
                 const data = await response.json();
-    
+
                 if (!response.ok) {
                     alert("Failed to fetch subjects: " + data.error);
                     return;
                 }
-    
+
                 const subjects = data.subjects; // Store subjects for filtering
                 console.log("Subjects Data:", subjects); // Debugging: Log the subjects data
                 renderSubjects(subjects);
-    
+
                 // Add event listener for search bar
                 searchBar.addEventListener('input', function () {
                     const searchTerm = searchBar.value.toLowerCase();
@@ -309,7 +323,7 @@
                     );
                     renderSubjects(filteredSubjects);
                 });
-    
+
                 // Add event listener for sort dropdown
                 sortDropdown.addEventListener('change', function () {
                     const selectedRole = sortDropdown.value;
@@ -340,11 +354,11 @@
                 alert("An error occurred while fetching subjects.");
             }
         });
-    
+
         // Function to render subjects
         function renderSubjects(subjects) {
             subjectsContainer.innerHTML = ""; // Clear existing content
-    
+
             if (subjects.length === 0) {
                 // Show "Subject not found" message if no subjects match
                 const notFoundMessage = document.createElement("div");
@@ -353,11 +367,11 @@
                 subjectsContainer.appendChild(notFoundMessage);
                 return;
             }
-    
+
             subjects.forEach(subject => {
                 const subjectCard = document.createElement("div");
                 subjectCard.classList.add("subject-card");
-    
+
                 subjectCard.innerHTML = `
                     <div class="subject-title">${subject.name} (${subject.code})</div>
                     <div class="subject-details">
@@ -365,11 +379,11 @@
                         <span>NBA Coordinator: ${subject.nbaCoordinator?.name || "N/A"}</span>
                     </div>
                 `;
-    
+
                 subjectCard.addEventListener("click", function () {
                     window.location.href = "subjectdetailsfaculty.html";
                 });
-    
+
                 subjectsContainer.appendChild(subjectCard);
             });
         }

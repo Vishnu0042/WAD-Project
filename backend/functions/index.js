@@ -193,6 +193,159 @@ app.get("/dashboard/:empId", async (req, res) => {
   }
 });
 
+// Profile API - Get user details
+app.get("/profile/:empId", async (req, res) => {
+  try {
+    const { empId } = req.params;
+
+    if (!empId) {
+      return res.status(400).json({ error: "Employee ID is required." });
+    }
+
+    // Fetch user data
+    const userDoc = await db.collection("users").doc(empId).get();
+
+    if (!userDoc.exists) {
+      return res.status(404).json({ error: "User not found." });
+    }
+
+    const userData = userDoc.data();
+
+    return res.status(200).json({
+      empId: userData.empId,
+      name: userData.name,
+      email: userData.email,
+      profile_picture: userData.profile_picture,
+      department: userData.department,
+      phone: userData.phone,
+      unreadNotifications: userData.unreadNotifications
+    });
+
+  } catch (error) {
+    console.error("Profile API Error:", error);
+    return res.status(500).json({ error: "Internal server error: " + error.message });
+  }
+});
+
+// Profile API - Update user details
+app.put("/profile/:empId", async (req, res) => {
+  try {
+      const empId = req.params.empId;
+      const { name, profile_picture, phone } = req.body;
+
+      if (!name && !profile_picture && !phone) {
+          return res.status(400).json({ error: "At least one field (name, profile_picture, phone) must be provided." });
+      }
+
+      const userRef = db.collection("users").doc(empId);
+      const userDoc = await userRef.get();
+
+      if (!userDoc.exists) {
+          return res.status(404).json({ error: "User not found." });
+      }
+
+      const oldName = userDoc.data().name; // Store old name for reference
+
+      // Update user profile in Firestore
+      let updateData = {};
+      if (name) updateData.name = name;
+      if (profile_picture) updateData.profile_picture = profile_picture;
+      if (phone) updateData.phone = phone;
+
+      await userRef.update(updateData);
+
+      // If name is updated, update it across Firestore
+      if (name) {
+          const batch = db.batch();
+
+          // Update name in `subjects` collection where user is Course/NBA Coordinator or Faculty
+          const subjectsSnapshot = await db.collection("subjects").get();
+          subjectsSnapshot.forEach((subjectDoc) => {
+              const subjectData = subjectDoc.data();
+              const subjectRef = subjectDoc.ref;
+              let updated = false;
+
+              // Update Course Coordinator
+              if (subjectData.courseCoordinator && subjectData.courseCoordinator.empId === empId) {
+                  subjectData.courseCoordinator.name = name;
+                  updated = true;
+              }
+
+              // Update NBA Coordinator
+              if (subjectData.nbaCoordinator && subjectData.nbaCoordinator.empId === empId) {
+                  subjectData.nbaCoordinator.name = name;
+                  updated = true;
+              }
+
+              // Update Faculty (if stored as an array)
+              if (Array.isArray(subjectData.faculty)) {
+                  subjectData.faculty.forEach((facultyMember) => {
+                      if (facultyMember.empId === empId) {
+                          facultyMember.name = name;
+                          updated = true;
+                      }
+                  });
+              }
+
+              // Apply update if needed
+              if (updated) batch.update(subjectRef, subjectData);
+          });
+
+          // Update name in `documentSlots` (uploaded_files and approvals)
+          const documentSlotsSnapshot = await db.collection("documentSlots").get();
+          documentSlotsSnapshot.forEach((slotDoc) => {
+              const slotData = slotDoc.data();
+              const slotRef = slotDoc.ref;
+              let updated = false;
+
+              // Fetch uploaded files inside document slots
+              slotRef.collection("uploaded_files").get().then((uploadedFilesSnapshot) => {
+                  uploadedFilesSnapshot.forEach((fileDoc) => {
+                      const fileData = fileDoc.data();
+                      let fileUpdated = false;
+
+                      // Update uploader's name
+                      if (fileData.uploadedBy && fileData.uploadedBy.empId === empId) {
+                          fileData.uploadedBy.name = name;
+                          fileUpdated = true;
+                      }
+
+                      // Update approvals inside uploaded files
+                      if (fileData.approvals) {
+                          fileData.approvals.forEach((approval) => {
+                              if (approval.reviewedBy && approval.reviewedBy.empId === empId) {
+                                  approval.reviewedBy.name = name;
+                                  fileUpdated = true;
+                              }
+                          });
+                      }
+
+                      if (fileUpdated) batch.update(fileDoc.ref, fileData);
+                  });
+              });
+
+              if (updated) batch.update(slotRef, slotData);
+          });
+
+          // Update name in `notifications` collection
+          const notificationsSnapshot = await db.collection("notifications").where("recipient.empId", "==", empId).get();
+          notificationsSnapshot.forEach((notifDoc) => {
+              batch.update(notifDoc.ref, { "recipient.name": name });
+          });
+
+          // Commit batch update
+          await batch.commit();
+      }
+
+      return res.status(200).json({ message: "Profile updated successfully." });
+  } catch (error) {
+      console.error("Error updating profile:", error);
+      return res.status(500).json({ error: `Internal server error: ${error.message}` });
+  }
+});
+
+
+
 
 // Export API
 exports.api = functions.https.onRequest(app);

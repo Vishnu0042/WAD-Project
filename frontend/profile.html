@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f2f5;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        .profile-container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            width: 350px;
+            text-align: center;
+        }
+        .profile-box {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .profile-pic {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            margin-bottom: 10px;
+            cursor: pointer;
+            object-fit: cover;
+            border: 2px solid #2C3E50;
+        }
+        .profile-info {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            text-align: left;
+            width: 100%;
+            padding-left: 20px;
+        }
+        .profile-info p {
+            margin: 5px 0;
+            font-size: 14px;
+        }
+        .buttons {
+            margin-top: 15px;
+            text-align: center;
+        }
+        .btn {
+            background-color: #2C3E50;
+            color: white;
+            border: none;
+            padding: 10px;
+            margin: 5px;
+            cursor: pointer;
+            border-radius: 5px;
+            width: 100%;
+        }
+        .btn:hover {
+            background-color: #324557;
+        }
+        .hidden {
+            display: none;
+        }
+        input {
+            width: 100%;
+            padding: 5px;
+            margin: 5px 0;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        .circle-back-btn {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            width: 50px;
+            height: 50px;
+            background-color: #e74c3c; /* Red color */
+            color: white;
+            border: none;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 20px;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            z-index: 1000; /* Ensure it stays above other elements */
+        }
+        .circle-back-btn:hover {
+            background-color: #c0392b; /* Darker red on hover */
+            transform: scale(1.1); /* Slightly enlarge on hover */
+        }
+        .circle-back-btn i {
+            pointer-events: none; /* Prevent click events on the icon itself */
+        }
+    </style>
+</head>
+<body>
+    <!-- Circular Back Button -->
+    <button class="circle-back-btn" id="circle-back-btn" title="Go Back">
+        <i class="fas fa-arrow-left"></i>
+    </button>
+
+    <div class="profile-container">
+        <h3>User Profile</h3>
+        <div class="profile-box">
+            <img src="download.jpeg" alt="Profile Picture" class="profile-pic" id="profile-pic">
+            <input type="file" id="file-input" class="hidden" accept="image/*">
+            <div class="profile-info">
+                <p><strong>Full Name:</strong> <span id="name-text"></span>
+                    <input type="text" id="name-input" class="hidden">
+                </p>
+                <p><strong>Employee ID:</strong> <span id="id-text"></span>
+                    <input type="text" id="id-input" class="hidden" disabled>
+                </p>
+                <p><strong>Email ID:</strong> <span id="email-text"></span>
+                    <input type="email" id="email-input" class="hidden">
+                </p>
+                <p><strong>Phone Number:</strong> <span id="phone-text"></span>
+                    <input type="text" id="phone-input" class="hidden">
+                </p>
+                <p><strong>Department:</strong> <span id="dept-text"></span>
+                    <input type="text" id="dept-input" class="hidden">
+                </p>
+            </div>
+        </div>
+        <div class="buttons">
+            <a href="changepassword.html"><button class="btn">Change Password</button></a>
+            <button class="btn" id="edit-btn">Edit Profile</button>
+            <button class="btn hidden" id="save-btn">Save Changes</button>
+            <button class="btn hidden" id="cancel-btn" style="background-color: red;">Cancel</button>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = "https://us-central1-wad-casestudy0042.cloudfunctions.net/api";
+
+        const editBtn = document.getElementById("edit-btn");
+        const saveBtn = document.getElementById("save-btn");
+        const cancelBtn = document.getElementById("cancel-btn");
+        const circleBackBtn = document.getElementById("circle-back-btn");
+
+        const nameText = document.getElementById("name-text");
+        const nameInput = document.getElementById("name-input");
+        const idText = document.getElementById("id-text");
+        const idInput = document.getElementById("id-input");
+        const emailText = document.getElementById("email-text");
+        const emailInput = document.getElementById("email-input");
+        const phoneText = document.getElementById("phone-text");
+        const phoneInput = document.getElementById("phone-input");
+        const deptText = document.getElementById("dept-text");
+        const deptInput = document.getElementById("dept-input");
+
+        const profilePic = document.getElementById("profile-pic");
+        const fileInput = document.getElementById("file-input");
+
+        let originalValues = {};
+
+        // Fetch user profile details
+        async function fetchProfile() {
+            const user = JSON.parse(localStorage.getItem("user"));
+            if (!user || !user.empId) {
+                alert("User not logged in. Redirecting to login page.");
+                window.location.href = "index.html";
+                return;
+            }
+
+            const empId = user.empId;
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/profile/${empId}`);
+                const data = await response.json();
+
+                if (!response.ok) {
+                    alert("Failed to fetch profile: " + data.error);
+                    return;
+                }
+
+                // Populate profile fields
+                nameText.textContent = data.name;
+                nameInput.value = data.name;
+                idText.textContent = data.empId;
+                idInput.value = data.empId;
+                emailText.textContent = data.email;
+                emailInput.value = data.email;
+                phoneText.textContent = data.phone || "";
+                phoneInput.value = data.phone || "";
+                deptText.textContent = data.department || "";
+                deptInput.value = data.department || "";
+                profilePic.src = data.profile_picture || "download.jpeg";
+            } catch (error) {
+                console.error("Error fetching profile:", error);
+                alert("An error occurred while fetching profile.");
+            }
+        }
+
+        // Save updated profile details
+        async function saveProfile() {
+            const user = JSON.parse(localStorage.getItem("user"));
+            if (!user || !user.empId) {
+                alert("User not logged in. Redirecting to login page.");
+                window.location.href = "index.html";
+                return;
+            }
+
+            const empId = user.empId;
+
+            const updatedData = {
+                name: nameInput.value,
+                phone: phoneInput.value,
+                profile_picture: profilePic.src
+            };
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/profile/${empId}`, {
+                    method: "PUT",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify(updatedData)
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    alert("Failed to save profile: " + data.error);
+                    return;
+                }
+
+                alert("Profile updated successfully.");
+                toggleEditMode(false);
+            } catch (error) {
+                console.error("Error saving profile:", error);
+                alert("An error occurred while saving profile.");
+            }
+        }
+
+        // Toggle edit mode
+        function toggleEditMode(isEditing) {
+            nameText.classList.toggle("hidden", isEditing);
+            nameInput.classList.toggle("hidden", !isEditing);
+            idText.classList.toggle("hidden", isEditing);
+            idInput.classList.toggle("hidden", !isEditing);
+            emailText.classList.toggle("hidden", isEditing);
+            emailInput.classList.toggle("hidden", !isEditing);
+            phoneText.classList.toggle("hidden", isEditing);
+            phoneInput.classList.toggle("hidden", !isEditing);
+            deptText.classList.toggle("hidden", isEditing);
+            deptInput.classList.toggle("hidden", !isEditing);
+
+            editBtn.classList.toggle("hidden", isEditing);
+            saveBtn.classList.toggle("hidden", !isEditing);
+            cancelBtn.classList.toggle("hidden", !isEditing);
+        }
+
+        // Save original values
+        function saveOriginalValues() {
+            originalValues = {
+                name: nameInput.value,
+                email: emailInput.value,
+                phone: phoneInput.value,
+                dept: deptInput.value
+            };
+        }
+
+        // Restore original values
+        function restoreOriginalValues() {
+            nameInput.value = originalValues.name;
+            emailInput.value = originalValues.email;
+            phoneInput.value = originalValues.phone;
+            deptInput.value = originalValues.dept;
+        }
+
+        // Event listeners
+        editBtn.addEventListener("click", () => {
+            saveOriginalValues();
+            toggleEditMode(true);
+        });
+
+        saveBtn.addEventListener("click", saveProfile);
+
+        cancelBtn.addEventListener("click", () => {
+            restoreOriginalValues();
+            toggleEditMode(false);
+        });
+
+        circleBackBtn.addEventListener("click", () => {
+            window.history.back(); // Navigate to the previous page
+        });
+
+        profilePic.addEventListener("click", () => {
+            fileInput.click();
+        });
+
+        fileInput.addEventListener("change", function () {
+            const file = fileInput.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    profilePic.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // Fetch profile on page load
+        fetchProfile();
+    </script>
+</body>
+</html>
