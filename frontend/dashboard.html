@@ -357,10 +357,9 @@
 
         // Function to render subjects
         function renderSubjects(subjects) {
-            subjectsContainer.innerHTML = ""; // Clear existing content
+            subjectsContainer.innerHTML = "";
 
             if (subjects.length === 0) {
-                // Show "Subject not found" message if no subjects match
                 const notFoundMessage = document.createElement("div");
                 notFoundMessage.classList.add("not-found-message");
                 notFoundMessage.textContent = "No subjects found.";
@@ -381,7 +380,34 @@
                 `;
 
                 subjectCard.addEventListener("click", function () {
-                    window.location.href = "subjectdetailsfaculty.html";
+                    const user = JSON.parse(localStorage.getItem("user"));
+                    if (!user || !user.empId) {
+                        alert("Please login first");
+                        window.location.href = "index.html";
+                        return;
+                    }
+                    
+                    const empId = user.empId;
+                    
+                    // Check NBA Coordinator first
+                    const isNBACoordinator = subject.nbaCoordinator && 
+                        subject.nbaCoordinator.empId.toString() === empId.toString();
+
+                    // Then check Course Coordinator
+                    const isCourseCoordinator = subject.courseCoordinator && 
+                        subject.courseCoordinator.empId.toString() === empId.toString();
+
+                    // Store subject data in localStorage for the details page
+                    localStorage.setItem("currentSubject", JSON.stringify(subject));
+
+                    if (isNBACoordinator) {
+                        alert("NBA coordinator view coming soon");
+                    } else if (isCourseCoordinator) {
+                        alert("Course coordinator view coming soon");
+                    } else {
+                        // If not NBA or Course coordinator, redirect to faculty view
+                        window.location.href = `subjectdetailsfaculty.html?subjectCode=${subject.code}&empId=${empId}`;
+                    }
                 });
 
                 subjectsContainer.appendChild(subjectCard);

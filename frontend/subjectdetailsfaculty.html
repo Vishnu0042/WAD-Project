@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Subject Details</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Arial', sans-serif;
+            background-color: #f4f6f9;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header Styling */
+        .header {
+            background-color: #2C3E50; /* Dark Blue */
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            position: fixed;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            font-size: 20px;
+            font-weight: bold;
+            color: #ffffff;
+        }
+
+        .logo img {
+            height: 40px;
+            margin-right: 10px;
+        }
+
+        .user-actions {
+            display: flex;
+            align-items: center;
+            gap: 15px; /* Increase gap between items */
+            margin-right: 40px; /* Increase right margin */
+        }
+
+        .user-actions i {
+            font-size: 22px;
+            cursor: pointer;
+            color: #ffffff;
+            transition: color 0.3s ease-in-out;
+        }
+
+        .user-actions i:hover {
+            color: #1abc9c; /* Light Green Hover */
+        }
+
+        /* Profile Image */
+        .profile-photo {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            object-fit: cover;
+            cursor: pointer;
+            transition: transform 0.2s ease-in-out;
+        }
+
+        .profile-photo:hover {
+            transform: scale(1.1);
+        }
+
+        /* Sidebar Styling */
+        .sidebar {
+            background-color: #34495e; /* Darker Blue */
+            height: 100vh;
+            width: 250px;
+            position: fixed;
+            top: 60px;
+            left: 0;
+            padding-top: 20px; /* To avoid overlapping with header */
+            transition: transform 0.3s ease-in-out;
+            transform: translateX(-250px);
+            z-index: 999;
+        }
+
+        .sidebar.show {
+            transform: translateX(0);
+        }
+
+        .sidebar a {
+            display: block;
+            color: #ecf0f1;
+            padding: 15px 20px;
+            text-decoration: none;
+            font-size: 18px;
+            transition: background-color 0.3s ease-in-out;
+        }
+
+        .sidebar a:hover {
+            background-color: #1abc9c; /* Light Green Hover */
+        }
+
+        /* Hamburger Menu */
+        .hamburger-container {
+            padding: 10px;
+            display: flex;
+            align-items: center;
+            position: fixed;
+            top: 70px; /* Just below the header */
+            left: 10px; /* Slightly away from the edge */
+            z-index: 1000;
+            background-color: #ffffff; /* White background */
+            border-radius: 5px; /* Slightly rounded corners */
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2); /* Soft shadow */
+        }
+
+        .hamburger {
+            font-size: 24px;
+            cursor: pointer;
+            color: #34495e; /* Dark blue/gray color */
+        }
+
+        /* Main Content Styling */
+        .main-content {
+            margin-top: 100px; /* To avoid overlapping with header */
+            flex-grow: 1;
+            padding: 20px;
+            /* margin-left: 250px; */
+            transition: margin-left 0.3s ease-in-out;
+            position: relative; /* Ensure it is correctly positioned */
+            z-index: 1; /* Ensure it stays above the sidebar */
+        }
+
+        .main-content.collapsed {
+            margin-left: 0;
+        }
+
+        /* Hide the hamburger when sidebar is open */
+        .hamburger-container.hidden {
+            display: none;
+        }
+
+        /* Subject Title */
+        .subject-title {
+            font-size: 28px;
+            font-weight: bold;
+            color: #2C3E50;
+            margin-bottom: 20px;
+        }
+
+        /* Tabbed Navigation */
+        .tabbed-navigation {
+            display: flex;
+            border-bottom: 1px solid #ccc;
+            margin-bottom: 20px;
+        }
+
+        .tabbed-navigation .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border: 1px solid #ccc;
+            border-bottom: none;
+            background-color: #ffffff;
+            margin-right: 5px;
+        }
+
+        .tabbed-navigation .tab.active {
+            background-color: #2C3E50;
+            color: #ffffff;
+        }
+
+        /* Documents Table */
+        .documents-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .documents-table th, .documents-table td {
+            border: 1px solid #ccc;
+            padding: 10px;
+            text-align: left;
+        }
+
+        .documents-table th {
+            background-color: #34495e;
+            color: #ffffff;
+        }
+
+        .documents-table td {
+            background-color: #ffffff;
+        }
+
+        .documents-table .button {
+            padding: 5px 10px;
+            color: #ffffff;
+            background-color: #2C3E50;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .documents-table .button.upload {
+            background-color: #1abc9c;
+        }
+
+        .documents-table .button.view {
+            background-color: #3498db;
+        }
+
+        .documents-table .button:hover {
+            opacity: 0.8;
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background-color: #ffffff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            width: 80%;
+            max-width: 800px;
+            position: relative;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+
+        .modal-header .close {
+            cursor: pointer;
+            font-size: 24px;
+        }
+
+        .modal-body {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .modal-body .file-upload {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            border: 2px dashed #ccc;
+            padding: 20px;
+            border-radius: 8px;
+        }
+
+        .modal-body .file-upload.dragging {
+            border-color: #2C3E50;
+        }
+
+        .modal-body .file-upload input[type="file"] {
+            display: none;
+        }
+
+        .modal-body .file-upload-label {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        .modal-body .file-upload-label i {
+            font-size: 48px;
+            color: #2C3E50;
+            margin-bottom: 10px;
+        }
+
+        .modal-body .file-upload-label span {
+            font-size: 16px;
+            color: #2C3E50;
+        }
+
+        .modal-body .progress-bar {
+            width: 100%;
+            background-color: #f4f6f9;
+            border-radius: 8px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+
+        .modal-body .progress-bar .progress {
+            width: 0;
+            height: 10px;
+            background-color: #2C3E50;
+        }
+
+        .modal-body .upload-button {
+            align-self: flex-end;
+            padding: 10px 20px;
+            color: #ffffff;
+            background-color: #2C3E50;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .modal-body .upload-button:hover {
+            opacity: 0.8;
+        }
+
+        .modal-body .document-preview {
+            display: flex;
+            width: 100%;
+        }
+
+        .modal-body .document-preview .left {
+            flex: 1;
+            border-right: 1px solid #ccc;
+            padding-right: 20px;
+            overflow: auto;
+        }
+
+        .modal-body .document-preview .right {
+            flex: 1;
+            padding-left: 20px;
+        }
+
+        .modal-body .document-preview .right .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .modal-body .document-preview .right .tabs .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border: 1px solid #ccc;
+            border-bottom: none;
+            background-color: #ffffff;
+        }
+
+        .modal-body .document-preview .right .tabs .tab.active {
+            background-color: #2C3E50;
+            color: #ffffff;
+        }
+
+        .modal-body .document-preview .right .tab-content {
+            display: none;
+        }
+
+        .modal-body .document-preview .right .tab-content.active {
+            display: block;
+        }
+
+        .modal-body .document-preview .right .tab-content .description {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .modal-body .document-preview .right .tab-content .description .delete-button {
+            padding: 10px 20px;
+            color: #ffffff;
+            background-color: #e74c3c;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .modal-body .document-preview .right .tab-content .reviews {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .modal-body .document-preview .right .tab-content .reviews .review {
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            background-color: #f4f6f9;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header -->
+    <header class="header">
+        <div class="logo">
+            <img src="https://cdn.indiabioscience.org/imager/orgs/gitam/695173/GITAM-Logo-New_76ea13ce5cec9e3d897b76c6abe4779f.jpg" alt="College Logo">
+            <span>GITAM</span>
+        </div>
+        <div class="user-actions">
+            <i class="fas fa-bell" id="notification-icon" title="Notifications"></i>
+            <img src="" alt="Profile Photo" class="profile-photo" id="user-profile-photo">
+        </div>
+    </header>
+
+    <!-- Hamburger Menu Container -->
+    <div class="hamburger-container" id="hamburger-container">
+        <i class="fas fa-bars hamburger" id="hamburger" title="Menu"></i>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+        <a href="dashboard.html">Dashboard</a>
+        <a href="#" id="logout-btn">Logout</a>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content" id="main-content">
+        <div class="subject-title" id="subject-title">Loading...</div>
+        <div class="tabbed-navigation">
+            <div class="tab active" data-tab="documents">Documents</div>
+        </div>
+        
+        <div class="tab-content active" id="documents">
+            <table class="documents-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Document Slot Name</th>
+                        <th>Deadline</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="documents-table-body">
+                    <!-- Document slots will be dynamically loaded here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Upload Modal -->
+    <div class="modal" id="upload-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="slot-name">Upload Document</span>
+                <span class="close" onclick="closeModal('upload-modal')">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="file-upload" id="file-upload">
+                    <input type="file" id="file-input" accept=".pdf,.doc,.docx,.xls,.xlsx">
+                    <label for="file-input" class="file-upload-label">
+                        <i class="fas fa-upload"></i>
+                        <span>Drag & Drop or Click to Upload</span>
+                    </label>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress" id="upload-progress"></div>
+                </div>
+                <button class="upload-button" onclick="uploadFile()">Upload</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- View Modal -->
+    <div class="modal" id="view-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="slot-name">View Document</span>
+                <span class="close" onclick="closeModal('view-modal')">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="document-preview">
+                    <div class="left">
+                        <iframe id="document-preview" src="" frameborder="0" style="width: 100%; height: 400px;"></iframe>
+                    </div>
+                    <div class="right">
+                        <div class="tabs">
+                            <div class="tab active" data-tab="description">Description</div>
+                            <div class="tab" data-tab="reviews">Reviews</div>
+                        </div>
+                        <div class="tab-content active" id="description">
+                            <div class="description">
+                                <div>File Name: <span id="file-name"></span></div>
+                                <div>File Size: <span id="file-size"></span></div>
+                                <div>Upload Date: <span id="upload-date"></span></div>
+                                <div>Status: <span id="file-status"></span></div>
+                                <button class="delete-button" id="delete-button" onclick="deleteFile()">Delete</button>
+                            </div>
+                        </div>
+                        <div class="tab-content" id="reviews">
+                            <div class="reviews" id="file-reviews">
+                                <!-- Reviews will be dynamically loaded -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'https://api-yesu3tomqa-uc.a.run.app';
+        let currentSubject = null;
+        let currentSlotId = null;
+        let currentFileId = null;
+
+        document.addEventListener("DOMContentLoaded", function() {
+            // Check authentication
+            const user = JSON.parse(localStorage.getItem("user"));
+            if (!user || !user.empId) {
+                alert("Please login first");
+                window.location.href = "index.html";
+                return;
+            }
+
+            // Initialize the page
+            initializePage();
+            loadUserProfile();
+        });
+
+        async function initializePage() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const subjectCode = urlParams.get('subjectCode');
+            const user = JSON.parse(localStorage.getItem("user"));
+            const empId = user.empId;
+
+            if (!subjectCode || !empId) {
+                window.location.href = 'dashboard.html';
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/subject-details/${empId}/${subjectCode}`);
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Failed to fetch subject details');
+                }
+
+                currentSubject = data;
+                console.log("Retrieved subject data:", data); // Debug log
+                updateUI(data);
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Failed to load subject details');
+            }
+        }
+
+        async function loadUserProfile() {
+            const empId = localStorage.getItem('empId');
+            try {
+                const response = await fetch(`${API_BASE_URL}/profile/${empId}`);
+                const data = await response.json();
+
+                if (response.ok) {
+                    document.getElementById('user-profile-photo').src = data.profile_picture || 'default-profile.jpg';
+                }
+            } catch (error) {
+                console.error('Error loading profile:', error);
+            }
+        }
+
+            function updateUI(data) {
+            // Update subject title
+            document.getElementById('subject-title').textContent = `${data.subject.name} (${data.subject.code})`;
+
+            // Update document slots
+            const tbody = document.getElementById('documents-table-body');
+            tbody.innerHTML = '';
+
+            if (!data.subject.documentSlots || data.subject.documentSlots.length === 0) {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td colspan="4" style="text-align: center;">No document slots available</td>
+                `;
+                tbody.appendChild(tr);
+                return;
+            }
+
+            data.subject.documentSlots.forEach((slot, index) => {
+                const tr = document.createElement('tr');
+                const hasFiles = slot.files && slot.files.length > 0;
+                
+                // Format deadline date with time
+                let deadlineDisplay = 'No deadline';
+                if (slot.deadline && slot.deadline.seconds) {
+                    // Handle Firestore timestamp
+                    const date = new Date(slot.deadline.seconds * 1000);
+                    deadlineDisplay = date.toLocaleString('en-US', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        hour12: true
+                    });
+                } else if (slot.deadline) {
+                    // Handle regular date string
+                    const date = new Date(slot.deadline);
+                    if (!isNaN(date.getTime())) {
+                        deadlineDisplay = date.toLocaleString('en-US', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            hour12: true
+                        });
+                    }
+                }
+                
+                tr.innerHTML = `
+                    <td>${index + 1}</td>
+                    <td>${slot.title || slot.name || 'Unnamed Slot'}</td>
+                    <td>${deadlineDisplay}</td>
+                    <td>
+                        <button class="button ${hasFiles ? 'view' : 'upload'}" 
+                                data-slot-id="${slot.slotId}"
+                                data-slot-name="${slot.title || slot.name}">
+                            ${hasFiles ? 'View' : 'Upload'}
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            attachButtonListeners();
+        }
+
+        function attachButtonListeners() {
+            document.querySelectorAll('.button.upload').forEach(button => {
+                button.addEventListener('click', () => {
+                    currentSlotId = button.getAttribute('data-slot-id');
+                    document.querySelector('.modal-header .slot-name').innerText = 
+                        button.getAttribute('data-slot-name');
+                    openModal('upload-modal');
+                });
+            });
+
+            document.querySelectorAll('.button.view').forEach(button => {
+                button.addEventListener('click', () => {
+                    currentSlotId = button.getAttribute('data-slot-id');
+                    viewDocuments(currentSlotId);
+                });
+            });
+        }
+
+        async function uploadFile() {
+            const fileInput = document.getElementById('file-input');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                alert('Please select a file');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const empId = localStorage.getItem('empId');
+                const response = await fetch(
+                    `${API_BASE_URL}/subject-details/${empId}/${currentSubject.subject.code}/${currentSlotId}/upload`,
+                    {
+                        method: 'POST',
+                        body: formData
+                    }
+                );
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Upload failed');
+                }
+
+                alert('File uploaded successfully!');
+                closeModal('upload-modal');
+                initializePage();
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Failed to upload file');
+            }
+        }
+
+        function viewDocuments(slotId) {
+            const slot = currentSubject.subject.documentSlots.find(s => s.slotId === slotId);
+            if (!slot || !slot.files.length) {
+                alert('No files available');
+                return;
+            }
+
+            const file = slot.files[0];
+            currentFileId = file.id;
+
+            document.querySelector('.modal-header .slot-name').innerText = slot.name;
+            document.getElementById('document-preview').src = file.downloadUrl;
+            document.getElementById('file-name').innerText = file.fileName;
+            document.getElementById('file-size').innerText = `${Math.round(file.fileSize / 1024)} KB`;
+            document.getElementById('upload-date').innerText = new Date(file.uploadTime).toLocaleDateString();
+            document.getElementById('file-status').innerText = file.status;
+
+            // Show/hide delete button based on permissions
+            const deleteButton = document.getElementById('delete-button');
+            deleteButton.style.display = file.canDelete ? 'block' : 'none';
+
+            // Update reviews
+            const reviewsContainer = document.getElementById('file-reviews');
+            reviewsContainer.innerHTML = file.reviews.map(review => `
+                <div class="review">
+                    <strong>${review.reviewedBy.name}:</strong> ${review.comment}
+                </div>
+            `).join('') || '<p>No reviews yet</p>';
+
+            openModal('view-modal');
+        }
+
+        async function deleteFile() {
+            if (!confirm('Are you sure you want to delete this file?')) {
+                return;
+            }
+
+            try {
+                const empId = localStorage.getItem('empId');
+                const response = await fetch(
+                    `${API_BASE_URL}/subject-details/${empId}/${currentSubject.subject.code}/${currentSlotId}/${currentFileId}`,
+                    { method: 'DELETE' }
+                );
+
+                if (!response.ok) {
+                    const data = await response.json();
+                    throw new Error(data.error || 'Delete failed');
+                }
+
+                alert('File deleted successfully!');
+                closeModal('view-modal');
+                initializePage();
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Failed to delete file');
+            }
+        }
+
+        // Modal functions
+        function openModal(modalId) {
+            document.getElementById(modalId).style.display = 'flex';
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+            if (modalId === 'upload-modal') {
+                document.getElementById('file-input').value = '';
+                document.getElementById('upload-progress').style.width = '0%';
+            }
+        }
+
+        // Logout functionality
+        document.getElementById('logout-btn').addEventListener('click', () => {
+            localStorage.removeItem('empId');
+            window.location.href = '../index.html';  // Changed from login.html to ../index.html
+        });
+
+        // Sidebar toggle
+        const hamburgerContainer = document.getElementById('hamburger-container');
+        const sidebar = document.getElementById('sidebar');
+
+        hamburgerContainer.addEventListener('mouseover', () => {
+            sidebar.classList.add('show');
+            hamburgerContainer.classList.add('hidden');
+        });
+
+        sidebar.addEventListener('mouseleave', () => {
+            sidebar.classList.remove('show');
+            hamburgerContainer.classList.remove('hidden');
+        });
+    </script>
+</body>
+</html>
